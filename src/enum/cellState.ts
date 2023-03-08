@@ -1,7 +1,6 @@
 enum CellState {
   Empty,
-  Missed,
-  Deducted,
+  Bombed,
   Ship,
   ShipBombed,
   ShipDestroyed,

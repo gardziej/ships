@@ -14,7 +14,6 @@ export default class Ship implements Drawable {
   private draggedCoors: Vector2;
   private draggedDirection: Direction;
   private mouseOffset: Vector2 = Vector2.zero;
-  public cellsState: CellState[];
   public position: Vector2;
 
   constructor(
@@ -23,7 +22,6 @@ export default class Ship implements Drawable {
     public size: number,
     public direction: Direction
   ) {
-    this.cellsState = new Array(this.size).fill(CellState.Ship);
     this.position = new Vector2(
       this.board.position.x + this.board.cellSize.x + this.board.cellSize.x * this.startCoords.x,
       this.board.position.y + this.board.cellSize.y + this.board.cellSize.y * this.startCoords.y,
@@ -117,7 +115,8 @@ export default class Ship implements Drawable {
   }
 
   get isDestroyed(): boolean {
-    return this.cellsState.every((cellState: CellState) => cellState === CellState.ShipBombed);
+    const cells: BoardCell[] = this.board.boardData.getCellsCoordsForShip(this);
+    return cells.every((cell: BoardCell) => [CellState.ShipBombed, CellState.ShipDestroyed].includes(cell.state));
   }
 
   get width(): number {
@@ -126,6 +125,11 @@ export default class Ship implements Drawable {
 
   get height(): number {
     return this.direction === Direction.Vertical ? this.size * this.board.cellSize.y : this.board.cellSize.y;
+  }
+
+  public markAsDestroyed(): void {
+    const cells: BoardCell[] = this.board.boardData.getCellsCoordsForShip(this);
+    cells.forEach((cell: BoardCell) => cell.state = CellState.ShipDestroyed);
   }
 
   public isMouseOver(mousePosition: Vector2): boolean {

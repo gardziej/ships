@@ -1,6 +1,14 @@
-import { Subject } from "rxjs";
+import { BehaviorSubject } from "rxjs";
 import GameState from "../enum/gameState";
 
-export default class GameStateManager {
-  gameStateChanged$: Subject<GameState> = new Subject();
+class GameStateManager {
+  gameStateChanged$: BehaviorSubject<GameState> = new BehaviorSubject(GameState.Init);
+
+  public getCurrentGameState(): GameState {
+    return this.gameStateChanged$.getValue();
+  }
 }
+
+const gameStateManager: GameStateManager = new GameStateManager();
+
+export default gameStateManager;

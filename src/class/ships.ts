@@ -104,7 +104,7 @@ export default class Ships {
   }
 
   public updateBoardData() {
-    this.boardData.update(this.ships);
+    this.boardData.updateAfterAddShip(this.ships);
   }
 
   private getAllPossibleToAddShips(shipType: ShipType): Ship[] {

@@ -2,12 +2,14 @@ import { filter } from "rxjs/operators";
 import CellState from "../enum/cellState";
 import Direction from "../enum/direction";
 import PlayerType from "../enum/playerType";
+import GameState from "../enum/gameState";
 import { mapMouseEventToPosition } from "../utils/rxjsHelpers";
 import Board from "./board";
 import BoardCell from "./boardCell";
 import Mouse from "./mouse";
 import Ship from "./ship";
 import Vector2 from "./vector2";
+import gameStateManager from "./gameStateManager";
 
 export default class BoardData {
 
@@ -26,22 +28,24 @@ export default class BoardData {
 
   public handleMouseInput(mouse: Mouse): void {
     mouse.leftClick$.pipe(
-      filter(() => Boolean(this.board.playerType === PlayerType.Enemy)),
+      filter(() => Boolean(this.board.playerType === PlayerType.Enemy && gameStateManager.getCurrentGameState() === GameState.PlayerMove)),
       mapMouseEventToPosition()
     ).subscribe((mousePosition: Vector2) => {
       const coords: Vector2 = this.getCellCoordsFromMousePosition(mousePosition);
       if (!coords) return;
-      this.getCellAtCords(coords).bomb();
+      if (!this.getCellAtCords(coords).bomb()) {
+        gameStateManager.gameStateChanged$.next(GameState.EnemyMove);
+      };
     });
   }
 
-  public update(ships: Ship[]): void {
+  public updateAfterAddShip(ships: Ship[]): void {
     ships.forEach((ship: Ship) => {
       for (let i = 0; i < ship.size; i++) {
         const coords: Vector2 = ship.direction === Direction.Horizontal
           ? new Vector2(ship.startCoords.x + i, ship.startCoords.y)
           : new Vector2(ship.startCoords.x, ship.startCoords.y + i);
-        this.getCellAtCords(coords).state = ship.cellsState[0];
+        this.getCellAtCords(coords).state = CellState.Ship;
         this.getCellAtCords(coords).ship = ship;
       }
     });
@@ -71,6 +75,26 @@ export default class BoardData {
     return cells;
   }
 
+  public getDiagonalCells(coords: Vector2): BoardCell[] {
+    const cells: BoardCell[] = [
+      this.getCellAtCords(new Vector2(coords.x - 1, coords.y - 1)),
+      this.getCellAtCords(new Vector2(coords.x - 1, coords.y + 1)),
+      this.getCellAtCords(new Vector2(coords.x + 1, coords.y - 1)),
+      this.getCellAtCords(new Vector2(coords.x + 1, coords.y + 1))
+    ];
+    return cells.filter((cell: BoardCell) => Boolean(cell));
+  }
+
+  public getSurroundingCells(coords: Vector2): BoardCell[] {
+    const cells: BoardCell[] = [];
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+          cells.push(this.getCellAtCords(new Vector2(coords.x + i, coords.y + j)));
+        }
+      }
+    return cells;
+  }
+
   public createBoardCell(): void {
     for (let i = 0; i < this.dim.x; i++) {
       for (let j = 0; j < this.dim.y; j++) {
@@ -78,7 +102,7 @@ export default class BoardData {
           this.board.position.x + this.board.cellSize.x + j * this.board.cellSize.x,
           this.board.position.y + this.board.cellSize.y + i * this.board.cellSize.y
         );
-        const newCell: BoardCell = new BoardCell(position, this.board.cellSize.x, this.board.cellSize.y, new Vector2(j, i), this.board.playerType);
+        const newCell: BoardCell = new BoardCell(this.board, position, this.board.cellSize.x, this.board.cellSize.y, new Vector2(j, i), this.board.playerType);
         this.addCell(newCell);
       }
     }
@@ -98,7 +122,9 @@ export default class BoardData {
   }
 
   public getCellAtCords(coords: Vector2): BoardCell {
-    return this.cells[coords.y][coords.x];
+    return coords.x >= 0 && coords.y >= 0 && coords.x < this.dim.x && coords.y < this.dim.y 
+    ? this.cells[coords.y][coords.x] 
+    : null;
   }
 
   public isCellAndSurroundingsSave(coords: Vector2): boolean {

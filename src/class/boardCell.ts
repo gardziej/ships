@@ -3,6 +3,7 @@ import PlayerType from "../enum/playerType";
 import Clickable from "../interfaces/clickable.interface";
 import Drawable from "../interfaces/drawable.interface";
 import { getRandomColor } from "../utils/random";
+import Board from "./board";
 import Rectangle from "./rectangle";
 import Ship from "./ship";
 import Vector2 from "./vector2";
@@ -13,6 +14,7 @@ export default class BoardCell implements Drawable, Clickable {
   public color: string = getRandomColor();
 
   constructor(
+    public board: Board,
     public position: Vector2,
     public width: number,
     public height: number,
@@ -29,7 +31,7 @@ export default class BoardCell implements Drawable, Clickable {
   get clickable(): boolean {
     return this.playerType === PlayerType.Player 
       ? this.state === CellState.Ship 
-      : ![CellState.Missed, CellState.Deducted, CellState.ShipBombed, CellState.ShipDestroyed].includes(this.state);
+      : ![CellState.Bombed, CellState.ShipBombed, CellState.ShipDestroyed].includes(this.state);
   }
 
   get cellSize(): Vector2 {
@@ -39,8 +41,7 @@ export default class BoardCell implements Drawable, Clickable {
   get stateSign(): string {
     switch (this.state) {
       case CellState.Empty: return '_';
-      case CellState.Deducted: return ',';
-      case CellState.Missed: return '.';
+      case CellState.Bombed: return '.';
       case CellState.Ship: return 'S';
       case CellState.ShipBombed: return 'X';
       case CellState.ShipDestroyed: return 'D';
@@ -50,12 +51,22 @@ export default class BoardCell implements Drawable, Clickable {
 
   public bomb(): boolean {
     if (this.state === CellState.Empty) {
-      this.state = CellState.Missed;
+      this.state = CellState.Bombed;
       return false;
     }
     if (this.state === CellState.Ship) {
       this.state = CellState.ShipBombed;
-      console.log('PRG: this.ship', this.ship); // TODO remove this
+      if (this.ship.isDestroyed) {
+        this.ship.markAsDestroyed();
+        this.board.boardData.getCellsCoordsForShip(this.ship).forEach((shipCell: BoardCell) => {
+          this.board.boardData.getSurroundingCells(shipCell.boardCoords).forEach((cell: BoardCell) => {
+            if (cell?.state === CellState.Empty) cell.state = CellState.Bombed;
+          })
+        });
+      }
+      else {
+        this.board.boardData.getDiagonalCells(this.boardCoords).forEach((cell: BoardCell) => cell.state = CellState.Bombed);
+      }
       return true;
     }
   }
@@ -66,22 +77,9 @@ export default class BoardCell implements Drawable, Clickable {
 
   public render(ctx: CanvasRenderingContext2D): void {
     switch (this.state) {
-      case CellState.Missed:
+      case CellState.Bombed:
         ctx.save();
         ctx.fillStyle = 'black';
-        ctx.beginPath();
-        ctx.arc(
-          this.position.x + this.cellSize.x * 0.5,
-          this.position.y + this.cellSize.y * 0.5,
-          3, 0, 2 * Math.PI, false);
-        ctx.stroke();
-        ctx.fill();
-        ctx.restore();
-        break;
-
-      case CellState.Deducted:
-        ctx.save();
-        ctx.fillStyle = '#ddd';
         ctx.beginPath();
         ctx.arc(
           this.position.x + this.cellSize.x * 0.5,

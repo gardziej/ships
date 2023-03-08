@@ -2,12 +2,13 @@ import Board from "./class/board";
 import Button from "./class/button";
 import Canvas from "./class/canvas";
 import FpsLimiter from "./class/fpsLimiter";
-import GameStateManager from "./class/gameStateManager";
+import gameStateManager from "./class/gameStateManager";
 import Header from "./class/header";
 import Mouse from "./class/mouse";
 import Vector2 from "./class/vector2";
 import GameState from "./enum/gameState";
 import PlayerType from "./enum/playerType";
+import { randomBoolean } from "./utils/random";
 
 export default class App {
   public clickable: boolean = false;
@@ -15,7 +16,6 @@ export default class App {
   private canvas: Canvas = new Canvas('canvas');
   public mouse: Mouse;
   private children: (Header | Board)[] = [];
-  public gameStateManager: GameStateManager = new GameStateManager();
 
 
   private header: Header;
@@ -27,7 +27,7 @@ export default class App {
     this.mouse = new Mouse(this.canvas);
     this.handleMouseInput();
 
-    this.gameStateManager.gameStateChanged$.subscribe((gameState: GameState) => {
+    gameStateManager.gameStateChanged$.subscribe((gameState: GameState) => {
       if (gameState === GameState.Init) {
         this.init();
       }
@@ -36,10 +36,16 @@ export default class App {
         this.startButton.hide();
         this.boardPlayer.editable = false;
         this.header.text = '';
+        gameStateManager.gameStateChanged$.next(randomBoolean() ? GameState.PlayerMove : GameState.EnemyMove); 
+      }
+      if (gameState === GameState.PlayerMove) {
+        this.header.text = 'Twój ruch';
+      }
+      if (gameState === GameState.EnemyMove) {
+        this.header.text = 'Ruch przeciwnika';
       }
     });
 
-    this.gameStateManager.gameStateChanged$.next(GameState.Init);
   }
 
   private init(): void {
@@ -55,7 +61,7 @@ export default class App {
     this.startButton.text = 'rozpocznij grę';
     this.startButton.clickable = true;
     this.startButton.handleMouseInput(this.mouse, () => {
-      this.gameStateManager.gameStateChanged$.next(GameState.Start);
+      gameStateManager.gameStateChanged$.next(GameState.Start);
     });
     this.children.push(this.startButton);
     this.startButton.show();
