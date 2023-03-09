@@ -6,7 +6,7 @@ import Drawable from "../interfaces/drawable.interface";
 import { mapMouseEventToPosition } from "../utils/rxjsHelpers";
 import BoardCell from "./boardCell";
 import BoardData from "./boardData";
-import BoardShipsSummary from "./BoardShipsSummary";
+import BoardShipsSummary from "./boardShipsSummary";
 import Canvas from "./canvas";
 import Mouse from "./mouse";
 import Rectangle from "./rectangle";

@@ -77,6 +77,7 @@ export default class Ships {
 
   public update(): void {
     this.ships.forEach((ship: Ship) => ship.update());
+    this.ships.sort((shipA: Ship, shipB: Ship) => shipA.size - shipB.size);
   }
 
   public render(ctx: CanvasRenderingContext2D): void {
