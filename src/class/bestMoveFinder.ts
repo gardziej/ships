@@ -147,7 +147,7 @@ class BestMoveFinder {
     return this.dataForFinder[coords.y][coords.x];
   }
 
-  private getRandomElementFromArray(arr: any[]) {
+  private getRandomElementFromArray<T>(arr: T[]): T {
     if (!arr || arr.length === 0) return null;
     return arr[randomInt(0, arr.length - 1)];
   }

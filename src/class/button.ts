@@ -1,5 +1,5 @@
 import { Subject } from "rxjs";
-import { filter, takeUntil, tap } from "rxjs/operators";
+import { filter, takeUntil } from "rxjs/operators";
 import Clickable from "../interfaces/clickable.interface";
 import Drawable from "../interfaces/drawable.interface";
 import { mapMouseEventToPosition } from "../utils/rxjsHelpers";

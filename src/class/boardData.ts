@@ -1,4 +1,4 @@
-import { filter, takeUntil, tap } from "rxjs/operators";
+import { filter, takeUntil } from "rxjs/operators";
 import CellState from "../enum/cellState";
 import Direction from "../enum/direction";
 import PlayerType from "../enum/playerType";
