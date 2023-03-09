@@ -49,6 +49,17 @@ export default class BoardCell implements Drawable, Clickable {
     }
   }
 
+  get stateSignForFinder(): string {
+    switch (this.state) {
+      case CellState.Empty: return '_';
+      case CellState.Bombed: return '.';
+      case CellState.Ship: return '_';
+      case CellState.ShipBombed: return 'X';
+      case CellState.ShipDestroyed: return 'D';
+      case CellState.Hollow: return '_';
+    }
+  }
+
   public bomb(): boolean {
     if (this.state === CellState.Empty) {
       this.state = CellState.Bombed;
@@ -92,7 +103,7 @@ export default class BoardCell implements Drawable, Clickable {
 
       case CellState.Ship:
         ctx.save();
-        ctx.fillStyle = this.playerType === PlayerType.Player ? 'aqua' : 'yellow';
+        ctx.fillStyle = this.playerType === PlayerType.Player ? 'aqua' : 'white';
         ctx.fillRect(
           this.position.x,
           this.position.y,

@@ -1,4 +1,4 @@
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { concatMap, tap, takeUntil, filter, switchMap } from "rxjs/operators";
 import Direction from "../enum/direction";
 import { ShipType } from "../interfaces/shipType";
@@ -12,6 +12,7 @@ import Ship from "./ship";
 import Vector2 from "./vector2";
 
 export default class Ships {
+  private destroy$: Subject<boolean> = new Subject();
   public ships: Ship[] = [];
   private boardData: BoardData;
   public draggedShip: Ship;
@@ -20,12 +21,17 @@ export default class Ships {
     this.boardData = board.boardData;
   }
 
+  public getUndestroyedShipsNumber(): number {
+    return this.ships.filter((ship: Ship) => !ship.isDestroyed).length;
+  }
+
   public isMouseOver(mousePosition: Vector2): boolean {
     return this.ships.some((ship: Ship) => ship.isMouseOver(mousePosition));
   }
 
   public handleMouseInput(mouse: Mouse, canvas: Canvas): void {
     const leftClick$: Observable<MouseEvent> = mouse.leftClick$.pipe(
+      takeUntil(this.destroy$),
       filter(() => Boolean(this.board.editable))
     );
 
@@ -165,5 +171,11 @@ export default class Ships {
       { size: 3 }, { size: 3 },
       { size: 4 }
     ];
+  }
+
+  public destroy(): void {
+    this.destroy$.next(true);
+    this.destroy$.complete();
+    this.destroy$.unsubscribe();
   }
 }

@@ -1,4 +1,4 @@
-import { filter } from "rxjs/operators";
+import { filter, takeUntil, tap } from "rxjs/operators";
 import CellState from "../enum/cellState";
 import Direction from "../enum/direction";
 import PlayerType from "../enum/playerType";
@@ -10,10 +10,12 @@ import Mouse from "./mouse";
 import Ship from "./ship";
 import Vector2 from "./vector2";
 import gameStateManager from "./gameStateManager";
+import { Subject } from "rxjs";
 
 export default class BoardData {
 
   public cells: BoardCell[][] = [];
+  private destroy$: Subject<boolean> = new Subject();
 
   constructor(
     private board: Board,
@@ -28,14 +30,20 @@ export default class BoardData {
 
   public handleMouseInput(mouse: Mouse): void {
     mouse.leftClick$.pipe(
+      takeUntil(this.destroy$),
       filter(() => Boolean(this.board.playerType === PlayerType.Enemy && gameStateManager.getCurrentGameState() === GameState.PlayerMove)),
       mapMouseEventToPosition()
     ).subscribe((mousePosition: Vector2) => {
       const coords: Vector2 = this.getCellCoordsFromMousePosition(mousePosition);
       if (!coords) return;
-      if (!this.getCellAtCords(coords).bomb()) {
+      const cell: BoardCell = this.getCellAtCords(coords);
+      if ([CellState.Empty, CellState.Ship].includes(cell.state) && !cell.bomb()) {
         gameStateManager.gameStateChanged$.next(GameState.EnemyMove);
-      };
+      }
+      else {
+        gameStateManager.gameStateChanged$.next(GameState.PlayerMove);
+      }
+      if (this.board.playerType === PlayerType.Enemy) this.board.setLastMove(cell.boardCoords);
     });
   }
 
@@ -136,6 +144,22 @@ export default class BoardData {
       }
     }
     return true;
+  }
+
+  public getDataForFinder(): string[][] {
+    const cells: string[][] = Array.from(Array(10), () => new Array(10).fill('_'));
+    for (let i = 0; i < this.dim.x; i++) {
+      for (let j = 0; j < this.dim.y; j++) {
+        cells[j][i] = this.getCellAtCords(new Vector2(i, j)).stateSignForFinder;
+      }
+    }
+    return cells;
+  }
+
+  public destroy(): void {
+    this.destroy$.next(true);
+    this.destroy$.complete();
+    this.destroy$.unsubscribe();
   }
 
 }

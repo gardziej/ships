@@ -26,7 +26,6 @@ export default class Rectangle implements Drawable {
     ctx.roundRect(this.position.x, this.position.y, this.width, this.height, this.rounds);
     ctx.fill();
     ctx.stroke();
-
     ctx.restore();
   }
 

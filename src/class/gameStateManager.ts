@@ -10,5 +10,4 @@ class GameStateManager {
 }
 
 const gameStateManager: GameStateManager = new GameStateManager();
-
 export default gameStateManager;

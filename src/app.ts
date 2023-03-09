@@ -1,3 +1,4 @@
+import bestMoveFinder from "./class/bestMoveFinder";
 import Board from "./class/board";
 import Button from "./class/button";
 import Canvas from "./class/canvas";
@@ -15,17 +16,19 @@ export default class App {
   private fpsLimiter = new FpsLimiter(this);
   private canvas: Canvas = new Canvas('canvas');
   public mouse: Mouse;
-  private children: (Header | Board)[] = [];
-
-
+  private children = new Map();
   private header: Header;
   private startButton: Button;
+  private nextGameButton: Button;
   private boardPlayer: Board;
   private boardEnemy: Board;
 
   constructor() {
     this.mouse = new Mouse(this.canvas);
     this.handleMouseInput();
+
+    this.initStartButton();
+    this.initNextGameButton();
 
     gameStateManager.gameStateChanged$.subscribe((gameState: GameState) => {
       if (gameState === GameState.Init) {
@@ -40,44 +43,81 @@ export default class App {
       }
       if (gameState === GameState.PlayerMove) {
         this.header.text = 'Twój ruch';
+        this.checkForWinCondition();
       }
       if (gameState === GameState.EnemyMove) {
+        if (this.checkForWinCondition()) {
+          return;
+        }
         this.header.text = 'Ruch przeciwnika';
+        setTimeout(() => {
+          const bestMove: Vector2 = bestMoveFinder.findBestMove(this.boardPlayer.boardData.getDataForFinder());
+          if (!this.boardPlayer.boardData.getCellAtCords(bestMove).bomb()) {
+            gameStateManager.gameStateChanged$.next(GameState.PlayerMove);
+          }
+          else {
+            gameStateManager.gameStateChanged$.next(GameState.EnemyMove);
+          }
+          this.boardPlayer && this.boardPlayer.setLastMove(bestMove);
+        }, 300);
+      }
+      if (gameState === GameState.Finished) {
+        this.nextGameButton.show();
       }
     });
 
   }
 
+  private reset(): void {
+    if (this.boardPlayer) {
+      this.boardPlayer.destroy();
+      this.boardPlayer = null;
+    }
+    if (this.boardEnemy) {
+      this.boardEnemy.destroy();
+      this.boardEnemy = null;
+    }
+  }
+
   private init(): void {
+    this.reset();
     this.header = new Header(new Vector2(50, 50), this.canvas.dim.x - 100, 50);
     this.header.text = 'Rozplanuj swoje statki, możesz podnieść statek lewym klawiszem myszki, przenieść go a także obrócić prawym klawiszem myszki.';
-    this.children.push(this.header);
+    this.children.set('header', this.header);
     this.initBoardPlayer();
-    this.initStartButton();
+    this.startButton.show();
+    this.nextGameButton.hide();
   }
   
   private initStartButton(): void {
     this.startButton = new Button(new Vector2(1050, 400), 250, 50);
     this.startButton.text = 'rozpocznij grę';
-    this.startButton.clickable = true;
     this.startButton.handleMouseInput(this.mouse, () => {
       gameStateManager.gameStateChanged$.next(GameState.Start);
     });
-    this.children.push(this.startButton);
+    this.children.set('startButton', this.startButton);
     this.startButton.show();
+  }
+
+  private initNextGameButton(): void {
+    this.nextGameButton = new Button(new Vector2(700, 120), 300, 50);
+    this.nextGameButton.text = 'zagraj jeszcze raz';
+    this.nextGameButton.handleMouseInput(this.mouse, () => {
+      gameStateManager.gameStateChanged$.next(GameState.Init);
+    });
+    this.children.set('nextGameButton', this.nextGameButton);
   }
 
   private initBoardPlayer(): void {
     this.boardPlayer = new Board(new Vector2(50, 150), 600, 600, PlayerType.Player, 'Twoje statki');
     this.boardPlayer.addRandomShips();
-    this.children.push(this.boardPlayer);
+    this.children.set('boardPlayer', this.boardPlayer);
     this.boardPlayer.handleMouseInput(this.mouse, this.canvas);
-    this.boardPlayer.logData();
   }
 
   private initBoardEnemy(): void {
     this.boardEnemy = new Board(new Vector2(1050, 150), 600, 600, PlayerType.Enemy, 'Statki przeciwnika');
-    this.children.push(this.boardEnemy);
+    this.children.set('boardEnemy', this.boardEnemy);
     this.boardEnemy.addRandomShips();
     this.boardEnemy.editable = false;
     this.boardEnemy.handleMouseInput(this.mouse, this.canvas);
@@ -86,13 +126,28 @@ export default class App {
   public handleMouseInput(): void {
     this.mouse.mousePosition$.subscribe((mousePosition: Vector2) => {
       if (this.boardPlayer?.ships?.draggedShip) return;
-      if (this.children.some(child => child.isMouseOver(mousePosition))) {
+      if (Array.from(this.children.values()).some(child => child.isMouseOver(mousePosition))) {
         this.canvas.setPointerCursor();
       }
       else {
         this.canvas.setDefaultCursor();
       }
     });
+  }
+
+  public checkForWinCondition(): boolean {
+    const testP = this.boardPlayer.ships.getUndestroyedShipsNumber();
+    const testE = this.boardEnemy.ships.getUndestroyedShipsNumber();
+    if (Math.min(testP, testE) === 0) {
+      gameStateManager.gameStateChanged$.next(GameState.Finished);
+      if (testE === 0) {
+        this.header.text = 'GRATULACJE! Wygrana';
+      } else {
+        this.header.text = 'KONIEC! Przeciwnik wygrał';
+      }
+      return true;
+    }
+    return false;
   }
 
   public tick(): void {
@@ -105,6 +160,7 @@ export default class App {
     this.boardPlayer && this.boardPlayer.update();
     this.boardEnemy && this.boardEnemy.update();
     this.startButton && this.startButton.update();
+    this.nextGameButton && this.nextGameButton.update();
   }
 
   public render(): void {
@@ -113,6 +169,7 @@ export default class App {
     this.boardPlayer && this.boardPlayer.render(this.canvas.ctx);
     this.boardEnemy && this.boardEnemy.render(this.canvas.ctx);
     this.startButton && this.startButton.render(this.canvas.ctx);
+    this.nextGameButton && this.nextGameButton.render(this.canvas.ctx);
   }
 
 }

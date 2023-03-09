@@ -1,4 +1,5 @@
-import { filter } from "rxjs/operators";
+import { Subject } from "rxjs";
+import { filter, takeUntil, tap } from "rxjs/operators";
 import Clickable from "../interfaces/clickable.interface";
 import Drawable from "../interfaces/drawable.interface";
 import { mapMouseEventToPosition } from "../utils/rxjsHelpers";
@@ -7,6 +8,7 @@ import Rectangle from "./rectangle";
 import Vector2 from "./vector2";
 
 export default class Button implements Drawable, Clickable {
+  private destroy$: Subject<boolean> = new Subject();
   public clickable: boolean = false;
 
   public background: Rectangle;
@@ -35,6 +37,7 @@ export default class Button implements Drawable, Clickable {
 
   public handleMouseInput(mouse: Mouse, onClickCallback: () => void): void {
     mouse.leftClick$.pipe(
+      takeUntil(this.destroy$),
       mapMouseEventToPosition(),
       filter((mousePosition: Vector2) => this.isMouseOver(mousePosition)),
       filter(() => Boolean(this.clickable)),
@@ -57,6 +60,12 @@ export default class Button implements Drawable, Clickable {
     ctx.textAlign = "center";
     ctx.fillText(this.text, this.position.x + this.width/2, this.position.y + this.height * 0.66);
     ctx.restore();
+  }
+
+  public destroy(): void {
+    this.destroy$.next(true);
+    this.destroy$.complete();
+    this.destroy$.unsubscribe();
   }
 
 }

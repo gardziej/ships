@@ -1,9 +1,12 @@
+import { Subject } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 import PlayerType from "../enum/playerType";
 import Clickable from "../interfaces/clickable.interface";
 import Drawable from "../interfaces/drawable.interface";
 import { mapMouseEventToPosition } from "../utils/rxjsHelpers";
 import BoardCell from "./boardCell";
 import BoardData from "./boardData";
+import BoardShipsSummary from "./BoardShipsSummary";
 import Canvas from "./canvas";
 import Mouse from "./mouse";
 import Rectangle from "./rectangle";
@@ -11,13 +14,17 @@ import Ships from "./ships";
 import Vector2 from "./vector2";
 
 export default class Board implements Drawable, Clickable {
+  private destroy$: Subject<boolean> = new Subject();
   public clickable: boolean = false;
   public background: Rectangle;
+  public lastMoveRectangle: Rectangle;
   public cellSize: Vector2;
   public boardData: BoardData = new BoardData(this, new Vector2(10, 10));
   private mouseOverCell: Vector2;
   public ships: Ships;
   public editable: boolean = true;
+  public lastMove: Vector2;
+  private boardShipsSummary: BoardShipsSummary;
 
   constructor(
     public position: Vector2,
@@ -28,9 +35,18 @@ export default class Board implements Drawable, Clickable {
   ) {
     this.background = new Rectangle(this.position, this.width, this.height);
     this.background.rounds = [10, 10, 10, 10];
+    this.lastMoveRectangle = new Rectangle(Vector2.zero, 0, 0);
+    this.lastMoveRectangle.color = 'rgb(255, 0, 0, 0.1)';
     this.cellSize = new Vector2(this.width / 12, this.height / 12);
     this.boardData.createBoardCell();
     this.ships = new Ships(this);
+    this.boardShipsSummary = new BoardShipsSummary(
+      this,
+      this.playerType === PlayerType.Player 
+        ? new Vector2(this.position.x + this.width + this.cellSize.x / 2, this.position.y + this.cellSize.y * 2) 
+        : new Vector2(this.position.x - this.cellSize.x * 2.5, this.position.y + this.cellSize.y * 2), 
+      200, 
+      this.height);
   }
 
   public isMouseOver(mousePosition: Vector2): boolean {
@@ -46,6 +62,7 @@ export default class Board implements Drawable, Clickable {
 
     mouse.move$.pipe(
       mapMouseEventToPosition(),
+      takeUntil(this.destroy$)
     ).subscribe((mousePosition: Vector2) => {
       if (mousePosition.x > this.position.x + this.cellSize.x &&
         mousePosition.y > this.position.y + this.cellSize.y &&
@@ -66,8 +83,16 @@ export default class Board implements Drawable, Clickable {
     this.ships.addRandomShips();
   }
 
+  public setLastMove(lastMove: Vector2) {
+    this.lastMove = lastMove;
+    this.lastMoveRectangle.width = this.cellSize.x;
+    this.lastMoveRectangle.height = this.cellSize.y;
+    this.lastMoveRectangle.position = this.boardData.getCellAtCords(lastMove).position.copy();
+  }
+
   public update(): void {
     this.ships.update();
+    this.boardShipsSummary.update();
   }
 
   public render(ctx: CanvasRenderingContext2D): void {
@@ -77,6 +102,12 @@ export default class Board implements Drawable, Clickable {
     this.renderTitle(ctx);
     if (this.editable && this.playerType === PlayerType.Player) {
       this.ships.render(ctx);
+    }
+    if (this.lastMove) {
+      this.renderLastMove(ctx);
+    }
+    if (this.ships.ships.length) {
+      this.boardShipsSummary.render(ctx);
     }
   }
 
@@ -123,6 +154,10 @@ export default class Board implements Drawable, Clickable {
   public renderCells(ctx: CanvasRenderingContext2D): void {
     this.boardData.cellsFlatArray.forEach((cell: BoardCell) => cell.render(ctx));
   }
+  
+  public renderLastMove(ctx: CanvasRenderingContext2D): void {
+    this.lastMoveRectangle.render(ctx);
+  }
 
   public logData() {
     for (let i = 0; i < this.boardData.dim.x; i++) {
@@ -132,6 +167,14 @@ export default class Board implements Drawable, Clickable {
       }
       console.log(row);
     }
+  }
+
+  public destroy(): void {
+    this.ships.destroy();
+    this.boardData.destroy();
+    this.destroy$.next(true);
+    this.destroy$.complete();
+    this.destroy$.unsubscribe();
   }
 
 }
