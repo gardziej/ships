@@ -114,6 +114,12 @@ export default class BoardCell implements Drawable, Clickable {
 
       case CellState.ShipBombed:
         ctx.save();
+        ctx.fillStyle = 'aqua';
+        ctx.fillRect(
+          this.position.x,
+          this.position.y,
+          this.cellSize.x, this.cellSize.y
+        );
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(
